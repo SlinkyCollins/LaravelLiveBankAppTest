@@ -13,7 +13,6 @@ class UserController extends Controller
     {
         $validation = Validator::make($req->all(), [
             'fullname' => 'required|max:50|min:3',
-            'username' => 'required|max:20|min:3|unique:users',
             'email' => ['required', 'email', 'unique:users', 'lowercase'],
             'accountType' => 'required|in:savings,current,fixed',
             'password' => [
@@ -27,16 +26,16 @@ class UserController extends Controller
 
         if ($validation->fails()) {
             return response()->json([
-                'status' => '201',
+                'status' => '422',
                 'msg' => $validation->errors()
             ]);
         }
 
         $user = User::create([
             'name' => $req->fullname,
-            'username' => $req->username,
             'email' => $req->email,
-            'accounttype' => $req->accountType,
+            'account_type' => $req->accountType,
+            'account_number' => $this->generateAccountNumber(),
             'balance' => 1000,
             'password' => Hash::make($req->password),
         ]);
@@ -45,5 +44,14 @@ class UserController extends Controller
             'status' => '200',
             'msg' => 'Account created successfully!'
         ]);
+    }
+
+    private function generateAccountNumber(): string
+    {
+        do {
+            $accountNumber = str_pad(mt_rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        } while (User::where('account_number', $accountNumber)->exists());
+
+        return $accountNumber;
     }
 }
