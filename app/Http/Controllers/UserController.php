@@ -12,7 +12,12 @@ class UserController extends Controller
     public function createUser(Request $req)
     {
         $validation = Validator::make($req->all(), [
-            'fullname' => 'required|max:50|min:3',
+            'fullname' => [
+                'required',
+                'max:50',
+                'min:3',
+                'regex:/^[a-zA-Z]+(\s+[a-zA-Z]+)+$/'
+            ],
             'email' => ['required', 'email', 'unique:users', 'lowercase'],
             'accountType' => 'required|in:savings,current,fixed',
             'password' => [
@@ -21,6 +26,7 @@ class UserController extends Controller
                 'regex:/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/'
             ],
         ], [
+            'fullname.regex' => 'Please enter your first name and last name separated by a space. No numbers or special characters allowed.',
             'password.regex' => 'Password must contain letters, numbers and special characters',
         ]);
 
@@ -36,7 +42,7 @@ class UserController extends Controller
             'email' => $req->email,
             'account_type' => $req->accountType,
             'account_number' => $this->generateAccountNumber(),
-            'balance' => 1000,
+            'balance' => 0,
             'password' => Hash::make($req->password),
         ]);
 
