@@ -12,8 +12,6 @@ Route::post('/register', [UserController::class, 'createUser']);
 
 Route::post('/login', [UserController::class, 'login']);
 
-Route::middleware('auth:sanctum')->get('/dashboard', function (Request $request) {
-    return $request->user();
-});
+Route::middleware('auth:sanctum')->get('/dashboard', [UserController::class, 'dashboard']);
 
 Route::middleware('auth:sanctum')->post('/logout', [UserController::class, 'logout']);
