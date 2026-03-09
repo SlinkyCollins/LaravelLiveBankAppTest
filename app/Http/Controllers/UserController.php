@@ -55,7 +55,7 @@ class UserController extends Controller
     private function generateAccountNumber(): string
     {
         do {
-            $accountNumber = str_pad(mt_rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+            $accountNumber = str_pad(random_int(0, 999999999999), 12, '0', STR_PAD_LEFT);
         } while (User::where('account_number', $accountNumber)->exists());
 
         return $accountNumber;
@@ -126,7 +126,7 @@ class UserController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Logged out'
+            'msg' => 'Logged out'
         ]);
     }
 }
