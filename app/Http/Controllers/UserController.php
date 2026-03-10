@@ -37,7 +37,7 @@ class UserController extends Controller
             ]);
         }
 
-        $user = User::create([
+        User::create([
             'name' => $req->fullname,
             'email' => $req->email,
             'account_type' => $req->accountType,
@@ -127,6 +127,14 @@ class UserController extends Controller
 
         return response()->json([
             'msg' => 'Logged out'
+        ]);
+    }
+
+    public function balance(Request $request)
+    {
+        return response()->json([
+            'status' => '200',
+            'balance' => $request->user()->balance,
         ]);
     }
 }
