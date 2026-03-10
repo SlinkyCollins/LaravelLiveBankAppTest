@@ -129,4 +129,12 @@ class UserController extends Controller
             'msg' => 'Logged out'
         ]);
     }
+
+    public function balance(Request $request)
+    {
+        return response()->json([
+            'status' => '200',
+            'balance' => $request->user()->balance,
+        ]);
+    }
 }

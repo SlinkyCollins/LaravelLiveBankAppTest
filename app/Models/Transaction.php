@@ -10,6 +10,7 @@ class Transaction extends Model
         'user_id',
         'beneficiary_id',
         'type',
+        'direction',
         'amount',
         'balance_before',
         'balance_after',
