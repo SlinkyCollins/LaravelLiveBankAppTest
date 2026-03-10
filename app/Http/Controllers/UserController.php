@@ -37,7 +37,7 @@ class UserController extends Controller
             ]);
         }
 
-        $user = User::create([
+        User::create([
             'name' => $req->fullname,
             'email' => $req->email,
             'account_type' => $req->accountType,
