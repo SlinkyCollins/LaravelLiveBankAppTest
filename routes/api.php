@@ -26,3 +26,7 @@ Route::middleware('auth:sanctum')->post('/transfer', [TransactionController::cla
 Route::middleware('auth:sanctum')->get('/balance', [UserController::class, 'balance']);
 
 Route::middleware('auth:sanctum')->get('/transactions', [TransactionController::class, 'history']);
+
+Route::middleware('auth:sanctum')->post('/set-pin', [UserController::class, 'setPin']);
+
+Route::middleware('auth:sanctum')->put('/change-pin', [UserController::class, 'changePin']);
