@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class TransactionController extends Controller
@@ -111,6 +112,7 @@ class TransactionController extends Controller
             'account_number' => ['required', 'string', 'size:12'],
             'account_name' => ['required', 'string'],
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
+            'pin' => ['required', 'string', 'size:4'],
         ], [
             'amount.min' => 'Minimum transfer is ₦100.',
             'amount.max' => 'Maximum transfer is ₦10,000,000.',
@@ -155,6 +157,21 @@ class TransactionController extends Controller
             return response()->json([
                 'status' => '400',
                 'msg' => 'Insufficient balance.'
+            ]);
+        }
+
+        // Validate transaction PIN
+        if (!$sender->transaction_pin) {
+            return response()->json([
+                'status' => '403',
+                'msg' => 'Please set your transaction PIN before making transfers.'
+            ]);
+        }
+
+        if (!Hash::check($req->pin, $sender->transaction_pin)) {
+            return response()->json([
+                'status' => '401',
+                'msg' => 'Invalid transaction PIN.'
             ]);
         }
 
