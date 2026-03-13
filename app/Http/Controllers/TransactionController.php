@@ -112,16 +112,12 @@ class TransactionController extends Controller
         $validation = Validator::make($req->all(), [
             'beneficiary_id' => ['nullable', 'integer'],
             'account_number' => ['required_without:beneficiary_id', 'string', 'size:12'],
-            'account_name' => ['required_without:beneficiary_id', 'string'],
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
             'pin' => ['required', 'string', 'size:4'],
             'save_beneficiary' => ['nullable', 'boolean'],
-            'bank_name' => ['required_if:save_beneficiary,true', 'string', 'max:100'],
-            'bank_code' => ['required_if:save_beneficiary,true', 'string', 'regex:/^\d{3,10}$/'],
         ], [
             'amount.min' => 'Minimum transfer is ₦100.',
             'amount.max' => 'Maximum transfer is ₦10,000,000.',
-            'bank_code.regex' => 'Bank code must be numeric and 3 to 10 digits.',
         ]);
 
         if ($validation->fails()) {
@@ -134,7 +130,6 @@ class TransactionController extends Controller
         $sender = $req->user();
         $selectedBeneficiary = null;
         $targetAccountNumber = $req->account_number;
-        $targetAccountName = $req->account_name;
 
         if ($req->filled('beneficiary_id')) {
             $selectedBeneficiary = Beneficiary::where('user_id', $sender->id)
@@ -149,7 +144,6 @@ class TransactionController extends Controller
             }
 
             $targetAccountNumber = $selectedBeneficiary->account_number;
-            $targetAccountName = $selectedBeneficiary->account_name;
         }
 
         // Prevent sending to yourself
@@ -160,20 +154,13 @@ class TransactionController extends Controller
             ]);
         }
 
-        // Verify recipient exists and name matches
+        // Verify recipient exists using account number (source of truth)
         $recipient = User::where('account_number', $targetAccountNumber)->first();
 
         if (!$recipient) {
             return response()->json([
                 'status' => '404',
                 'msg' => 'Recipient account not found.'
-            ]);
-        }
-
-        if (strtolower(trim($recipient->name)) !== strtolower(trim($targetAccountName))) {
-            return response()->json([
-                'status' => '400',
-                'msg' => 'Account name does not match the account holder.'
             ]);
         }
 
@@ -207,11 +194,11 @@ class TransactionController extends Controller
                 [
                     'user_id' => $sender->id,
                     'account_number' => $targetAccountNumber,
-                    'bank_code' => $req->bank_code,
+                    'bank_code' => '999001',
                 ],
                 [
-                    'account_name' => $targetAccountName,
-                    'bank_name' => $req->bank_name,
+                    'account_name' => $recipient->name,
+                    'bank_name' => 'Vaultly Bank',
                 ]
             );
         }

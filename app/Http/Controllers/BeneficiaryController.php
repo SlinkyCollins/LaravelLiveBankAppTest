@@ -25,11 +25,6 @@ class BeneficiaryController extends Controller
     {
         $validation = Validator::make($request->all(), [
             'account_number' => ['required', 'string', 'size:12'],
-            'account_name' => ['required', 'string', 'max:100'],
-            'bank_name' => ['required', 'string', 'max:100'],
-            'bank_code' => ['required', 'string', 'regex:/^\d{3,10}$/'],
-        ], [
-            'bank_code.regex' => 'Bank code must be numeric and 3 to 10 digits.',
         ]);
 
         if ($validation->fails()) {
@@ -57,16 +52,8 @@ class BeneficiaryController extends Controller
             ]);
         }
 
-        if (strtolower(trim($recipient->name)) !== strtolower(trim($request->account_name))) {
-            return response()->json([
-                'status' => '400',
-                'msg' => 'Account name does not match the account holder.',
-            ]);
-        }
-
         $existing = Beneficiary::where('user_id', $owner->id)
             ->where('account_number', $request->account_number)
-            ->where('bank_code', $request->bank_code)
             ->first();
 
         if ($existing) {
@@ -78,10 +65,10 @@ class BeneficiaryController extends Controller
 
         $beneficiary = Beneficiary::create([
             'user_id' => $owner->id,
-            'account_name' => $request->account_name,
+            'account_name' => $recipient->name,
             'account_number' => $request->account_number,
-            'bank_name' => $request->bank_name,
-            'bank_code' => $request->bank_code,
+            'bank_name' => 'Vaultly Bank',
+            'bank_code' => '999001',
         ]);
 
         return response()->json([
@@ -104,11 +91,6 @@ class BeneficiaryController extends Controller
 
         $validation = Validator::make($request->all(), [
             'account_number' => ['required', 'string', 'size:12'],
-            'account_name' => ['required', 'string', 'max:100'],
-            'bank_name' => ['required', 'string', 'max:100'],
-            'bank_code' => ['required', 'string', 'regex:/^\d{3,10}$/'],
-        ], [
-            'bank_code.regex' => 'Bank code must be numeric and 3 to 10 digits.',
         ]);
 
         if ($validation->fails()) {
@@ -136,17 +118,9 @@ class BeneficiaryController extends Controller
             ]);
         }
 
-        if (strtolower(trim($recipient->name)) !== strtolower(trim($request->account_name))) {
-            return response()->json([
-                'status' => '400',
-                'msg' => 'Account name does not match the account holder.',
-            ]);
-        }
-
         $duplicate = Beneficiary::where('user_id', $owner->id)
             ->where('id', '!=', $beneficiary->id)
             ->where('account_number', $request->account_number)
-            ->where('bank_code', $request->bank_code)
             ->first();
 
         if ($duplicate) {
@@ -157,10 +131,10 @@ class BeneficiaryController extends Controller
         }
 
         $beneficiary->update([
-            'account_name' => $request->account_name,
+            'account_name' => $recipient->name,
             'account_number' => $request->account_number,
-            'bank_name' => $request->bank_name,
-            'bank_code' => $request->bank_code,
+            'bank_name' => 'Vaultly Bank',
+            'bank_code' => '999001',
         ]);
 
         return response()->json([
