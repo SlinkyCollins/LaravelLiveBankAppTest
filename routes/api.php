@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BeneficiaryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -30,3 +31,11 @@ Route::middleware('auth:sanctum')->get('/transactions', [TransactionController::
 Route::middleware('auth:sanctum')->post('/set-pin', [UserController::class, 'setPin']);
 
 Route::middleware('auth:sanctum')->put('/change-pin', [UserController::class, 'changePin']);
+
+Route::middleware('auth:sanctum')->get('/beneficiaries', [BeneficiaryController::class, 'index']);
+
+Route::middleware('auth:sanctum')->post('/beneficiaries', [BeneficiaryController::class, 'store']);
+
+Route::middleware('auth:sanctum')->put('/beneficiaries/{id}', [BeneficiaryController::class, 'update']);
+
+Route::middleware('auth:sanctum')->delete('/beneficiaries/{id}', [BeneficiaryController::class, 'destroy']);

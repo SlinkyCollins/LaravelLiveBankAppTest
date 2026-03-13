@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Beneficiary;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -109,13 +110,18 @@ class TransactionController extends Controller
     public function transfer(Request $req)
     {
         $validation = Validator::make($req->all(), [
-            'account_number' => ['required', 'string', 'size:12'],
-            'account_name' => ['required', 'string'],
+            'beneficiary_id' => ['nullable', 'integer'],
+            'account_number' => ['required_without:beneficiary_id', 'string', 'size:12'],
+            'account_name' => ['required_without:beneficiary_id', 'string'],
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
             'pin' => ['required', 'string', 'size:4'],
+            'save_beneficiary' => ['nullable', 'boolean'],
+            'bank_name' => ['required_if:save_beneficiary,true', 'string', 'max:100'],
+            'bank_code' => ['required_if:save_beneficiary,true', 'string', 'regex:/^\d{3,10}$/'],
         ], [
             'amount.min' => 'Minimum transfer is ₦100.',
             'amount.max' => 'Maximum transfer is ₦10,000,000.',
+            'bank_code.regex' => 'Bank code must be numeric and 3 to 10 digits.',
         ]);
 
         if ($validation->fails()) {
@@ -126,9 +132,28 @@ class TransactionController extends Controller
         }
 
         $sender = $req->user();
+        $selectedBeneficiary = null;
+        $targetAccountNumber = $req->account_number;
+        $targetAccountName = $req->account_name;
+
+        if ($req->filled('beneficiary_id')) {
+            $selectedBeneficiary = Beneficiary::where('user_id', $sender->id)
+                ->where('id', $req->beneficiary_id)
+                ->first();
+
+            if (!$selectedBeneficiary) {
+                return response()->json([
+                    'status' => '404',
+                    'msg' => 'Saved beneficiary not found.'
+                ]);
+            }
+
+            $targetAccountNumber = $selectedBeneficiary->account_number;
+            $targetAccountName = $selectedBeneficiary->account_name;
+        }
 
         // Prevent sending to yourself
-        if ($sender->account_number === $req->account_number) {
+        if ($sender->account_number === $targetAccountNumber) {
             return response()->json([
                 'status' => '400',
                 'msg' => 'You cannot transfer to your own account.'
@@ -136,7 +161,7 @@ class TransactionController extends Controller
         }
 
         // Verify recipient exists and name matches
-        $recipient = User::where('account_number', $req->account_number)->first();
+        $recipient = User::where('account_number', $targetAccountNumber)->first();
 
         if (!$recipient) {
             return response()->json([
@@ -145,7 +170,7 @@ class TransactionController extends Controller
             ]);
         }
 
-        if (strtolower($recipient->name) !== strtolower($req->account_name)) {
+        if (strtolower(trim($recipient->name)) !== strtolower(trim($targetAccountName))) {
             return response()->json([
                 'status' => '400',
                 'msg' => 'Account name does not match the account holder.'
@@ -175,8 +200,24 @@ class TransactionController extends Controller
             ]);
         }
 
+        $savedBeneficiary = null;
+
+        if (!$selectedBeneficiary && $req->boolean('save_beneficiary')) {
+            $savedBeneficiary = Beneficiary::firstOrCreate(
+                [
+                    'user_id' => $sender->id,
+                    'account_number' => $targetAccountNumber,
+                    'bank_code' => $req->bank_code,
+                ],
+                [
+                    'account_name' => $targetAccountName,
+                    'bank_name' => $req->bank_name,
+                ]
+            );
+        }
+
         try {
-            DB::transaction(function () use ($sender, $recipient, $req, &$senderTransaction) {
+            DB::transaction(function () use ($sender, $recipient, $req, $selectedBeneficiary, $savedBeneficiary, &$senderTransaction) {
                 // Debit sender
                 $senderBalanceBefore = $sender->balance;
                 $sender->balance -= $req->amount;
@@ -190,6 +231,7 @@ class TransactionController extends Controller
                 // Log sender's transaction (outgoing)
                 $senderTransaction = Transaction::create([
                     'user_id' => $sender->id,
+                    'beneficiary_id' => $selectedBeneficiary?->id ?? $savedBeneficiary?->id,
                     'type' => 'transfer',
                     'direction' => 'debit',
                     'amount' => $req->amount,
@@ -219,6 +261,8 @@ class TransactionController extends Controller
             'msg' => 'Transfer successful!',
             'transaction' => $senderTransaction,
             'new_balance' => $sender->balance,
+            'beneficiary_saved' => !is_null($savedBeneficiary),
+            'beneficiary' => $savedBeneficiary,
         ]);
     }
 
