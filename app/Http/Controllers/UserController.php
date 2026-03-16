@@ -178,10 +178,11 @@ class UserController extends Controller
     public function changePin(Request $request)
     {
         $validation = Validator::make($request->all(), [
-            'current_pin' => ['required', 'string', 'size:4'],
+            'current_pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
             'new_pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
             'new_pin_confirmation' => ['required', 'same:new_pin'],
         ], [
+            'current_pin.regex' => 'Current PIN must be exactly 4 digits.',
             'new_pin.regex' => 'PIN must be exactly 4 digits.',
             'new_pin_confirmation.same' => 'PIN confirmation does not match.',
         ]);
