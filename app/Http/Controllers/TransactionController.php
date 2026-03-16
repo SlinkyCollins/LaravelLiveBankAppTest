@@ -307,4 +307,88 @@ class TransactionController extends Controller
             'transactions' => $transactions,
         ]);
     }
+
+    public function withdraw(Request $req)
+    {
+        $validation = Validator::make($req->all(), [
+            'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
+            'pin' => ['required', 'string', 'size:4'],
+        ], [
+            'amount.min' => 'Minimum withdrawal is ₦100.',
+            'amount.max' => 'Maximum withdrawal is ₦10,000,000.',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json([
+                'status' => '422',
+                'msg' => $validation->errors()
+            ]);
+        }
+
+        $user = $req->user();
+
+        if (!$user->transaction_pin) {
+            return response()->json([
+                'status' => '403',
+                'msg' => 'Please set your transaction PIN before making withdrawals.'
+            ]);
+        }
+
+        if (!Hash::check($req->pin, $user->transaction_pin)) {
+            return response()->json([
+                'status' => '401',
+                'msg' => 'Invalid transaction PIN.'
+            ]);
+        }
+
+        $amount = $req->input('amount');
+        $transaction = null;
+        $newBalance = null;
+        $errorResponse = null;
+
+        try {
+            DB::transaction(function () use ($user, $amount, &$transaction, &$newBalance, &$errorResponse) {
+                $lockedUser = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedUser->balance < $amount) {
+                    $errorResponse = response()->json([
+                        'status' => '400',
+                        'msg' => 'Insufficient balance.'
+                    ]);
+                    return;
+                }
+
+                $balanceBefore = $lockedUser->balance;
+
+                $lockedUser->decrement('balance', $amount);
+                $lockedUser->refresh();
+                $newBalance = $lockedUser->balance;
+
+                $transaction = Transaction::create([
+                    'user_id' => $lockedUser->id,
+                    'type' => 'withdraw',
+                    'direction' => 'debit',
+                    'amount' => $amount,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $newBalance,
+                ]);
+            }, self::TX_RETRY_ATTEMPTS);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => '500',
+                'msg' => 'Withdrawal failed. Please try again.'
+            ]);
+        }
+
+        if ($errorResponse) {
+            return $errorResponse;
+        }
+
+        return response()->json([
+            'status' => '200',
+            'msg' => 'Withdrawal successful!',
+            'transaction' => $transaction,
+            'new_balance' => $newBalance,
+        ]);
+    }
 }

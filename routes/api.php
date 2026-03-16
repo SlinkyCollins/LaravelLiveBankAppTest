@@ -24,6 +24,8 @@ Route::middleware('auth:sanctum')->post('/verify-account', [TransactionControlle
 
 Route::middleware('auth:sanctum')->post('/transfer', [TransactionController::class, 'transfer']);
 
+Route::middleware('auth:sanctum')->post('/withdraw', [TransactionController::class, 'withdraw']);
+
 Route::middleware('auth:sanctum')->get('/balance', [UserController::class, 'balance']);
 
 Route::middleware('auth:sanctum')->get('/transactions', [TransactionController::class, 'history']);
