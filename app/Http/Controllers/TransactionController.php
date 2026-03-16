@@ -132,11 +132,12 @@ class TransactionController extends Controller
             'beneficiary_id' => ['nullable', 'integer'],
             'account_number' => ['required_without:beneficiary_id', 'string', 'size:12'],
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
-            'pin' => ['required', 'string', 'size:4'],
+            'pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
             'save_beneficiary' => ['nullable', 'boolean'],
         ], [
             'amount.min' => 'Minimum transfer is ₦100.',
             'amount.max' => 'Maximum transfer is ₦10,000,000.',
+            'pin.regex' => 'PIN must be exactly 4 digits.',
         ]);
 
         if ($validation->fails()) {
@@ -323,10 +324,11 @@ class TransactionController extends Controller
 
         $validation = Validator::make($req->all(), [
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
-            'pin' => ['required', 'string', 'size:4'],
+            'pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
         ], [
             'amount.min' => 'Minimum withdrawal is ₦100.',
             'amount.max' => 'Maximum withdrawal is ₦10,000,000.',
+            'pin.regex' => 'PIN must be exactly 4 digits.',
         ]);
 
         if ($validation->fails()) {
