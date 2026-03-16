@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Beneficiary;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -23,6 +24,8 @@ class BeneficiaryController extends Controller
 
     public function store(Request $request)
     {
+        $bankCode = '999001';
+
         $validation = Validator::make($request->all(), [
             'account_number' => ['required', 'string', 'size:12'],
         ]);
@@ -54,6 +57,7 @@ class BeneficiaryController extends Controller
 
         $existing = Beneficiary::where('user_id', $owner->id)
             ->where('account_number', $request->account_number)
+            ->where('bank_code', $bankCode)
             ->first();
 
         if ($existing) {
@@ -63,13 +67,24 @@ class BeneficiaryController extends Controller
             ]);
         }
 
-        $beneficiary = Beneficiary::create([
-            'user_id' => $owner->id,
-            'account_name' => $recipient->name,
-            'account_number' => $request->account_number,
-            'bank_name' => 'Vaultly Bank',
-            'bank_code' => '999001',
-        ]);
+        try {
+            $beneficiary = Beneficiary::create([
+                'user_id' => $owner->id,
+                'account_name' => $recipient->name,
+                'account_number' => $request->account_number,
+                'bank_name' => 'Vaultly Bank',
+                'bank_code' => $bankCode,
+            ]);
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolation($e)) {
+                return response()->json([
+                    'status' => '409',
+                    'msg' => 'Beneficiary already exists.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return response()->json([
             'status' => '200',
@@ -80,6 +95,8 @@ class BeneficiaryController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $bankCode = '999001';
+
         $beneficiary = Beneficiary::where('user_id', $request->user()->id)->where('id', $id)->first();
 
         if (!$beneficiary) {
@@ -121,6 +138,7 @@ class BeneficiaryController extends Controller
         $duplicate = Beneficiary::where('user_id', $owner->id)
             ->where('id', '!=', $beneficiary->id)
             ->where('account_number', $request->account_number)
+            ->where('bank_code', $bankCode)
             ->first();
 
         if ($duplicate) {
@@ -130,12 +148,23 @@ class BeneficiaryController extends Controller
             ]);
         }
 
-        $beneficiary->update([
-            'account_name' => $recipient->name,
-            'account_number' => $request->account_number,
-            'bank_name' => 'Vaultly Bank',
-            'bank_code' => '999001',
-        ]);
+        try {
+            $beneficiary->update([
+                'account_name' => $recipient->name,
+                'account_number' => $request->account_number,
+                'bank_name' => 'Vaultly Bank',
+                'bank_code' => $bankCode,
+            ]);
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolation($e)) {
+                return response()->json([
+                    'status' => '409',
+                    'msg' => 'Beneficiary already exists.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return response()->json([
             'status' => '200',
@@ -161,5 +190,13 @@ class BeneficiaryController extends Controller
             'status' => '200',
             'msg' => 'Beneficiary deleted successfully!',
         ]);
+    }
+
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        $sqlState = (string) $e->getCode();
+
+        // 23000: MySQL/SQLite integrity violation, 23505: PostgreSQL unique violation.
+        return in_array($sqlState, ['23000', '23505'], true);
     }
 }
