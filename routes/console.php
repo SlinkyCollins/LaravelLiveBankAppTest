@@ -11,6 +11,11 @@ Artisan::command('inspire', function () {
 
 // Prune expired Sanctum tokens every hour
 Schedule::call(function () {
-    PersonalAccessToken::where('created_at', '<', now()->subMinutes(config('sanctum.expiration')))
-        ->delete();
+    $cutoff = now()->subMinutes(config('sanctum.expiration'));
+
+    PersonalAccessToken::where('created_at', '<', $cutoff)
+        ->select('id')
+        ->chunkById(1000, function ($tokens) {
+            PersonalAccessToken::whereIn('id', $tokens->pluck('id'))->delete();
+        });
 })->hourly();
