@@ -118,6 +118,16 @@ class TransactionController extends Controller
 
     public function transfer(Request $req)
     {
+        $sender = $req->user();
+
+        // Ensure users without a configured transaction PIN get a consistent 403 response.
+        if (!$sender->transaction_pin) {
+            return response()->json([
+                'status' => '403',
+                'msg' => 'Please set your transaction PIN before making transfers.'
+            ]);
+        }
+
         $validation = Validator::make($req->all(), [
             'beneficiary_id' => ['nullable', 'integer'],
             'account_number' => ['required_without:beneficiary_id', 'string', 'size:12'],
@@ -136,7 +146,6 @@ class TransactionController extends Controller
             ]);
         }
 
-        $sender = $req->user();
         $selectedBeneficiary = null;
         $targetAccountNumber = $req->account_number;
 
@@ -170,14 +179,6 @@ class TransactionController extends Controller
             return response()->json([
                 'status' => '404',
                 'msg' => 'Recipient account not found.'
-            ]);
-        }
-
-        // Validate transaction PIN
-        if (!$sender->transaction_pin) {
-            return response()->json([
-                'status' => '403',
-                'msg' => 'Please set your transaction PIN before making transfers.'
             ]);
         }
 
@@ -310,6 +311,16 @@ class TransactionController extends Controller
 
     public function withdraw(Request $req)
     {
+        $user = $req->user();
+
+        // Ensure users without a configured transaction PIN get a consistent 403 response.
+        if (!$user->transaction_pin) {
+            return response()->json([
+                'status' => '403',
+                'msg' => 'Please set your transaction PIN before making withdrawals.'
+            ]);
+        }
+
         $validation = Validator::make($req->all(), [
             'amount' => ['required', 'numeric', 'min:100', 'max:10000000'],
             'pin' => ['required', 'string', 'size:4'],
@@ -322,15 +333,6 @@ class TransactionController extends Controller
             return response()->json([
                 'status' => '422',
                 'msg' => $validation->errors()
-            ]);
-        }
-
-        $user = $req->user();
-
-        if (!$user->transaction_pin) {
-            return response()->json([
-                'status' => '403',
-                'msg' => 'Please set your transaction PIN before making withdrawals.'
             ]);
         }
 
