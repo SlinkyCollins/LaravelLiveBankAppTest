@@ -30,26 +30,33 @@ class TransactionController extends Controller
         }
 
         // 2. Get the authenticated user
-        $user = $req->user();
+        $userId = $req->user()->id;
+        $amount = $req->input('amount');
 
         // 3. Start DB transaction (atomic)
+        $transaction = null;
+        $newBalance = null;
         try {
-            DB::transaction(function () use ($user, $req, &$transaction) {
-                // 4. Record balance before
+            DB::transaction(function () use ($userId, $amount, &$transaction, &$newBalance) {
+                // 4. Lock the user row for a safe read-modify-write cycle
+                $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
+
+                // 5. Record balance before
                 $balanceBefore = $user->balance;
 
-                // 5. Update user's balance
-                $user->balance += $req->amount;
-                $user->save();
+                // 6. Update user's balance atomically in DB
+                $user->increment('balance', $amount);
+                $user->refresh();
+                $newBalance = $user->balance;
 
-                // 6. Create transaction record
+                // 7. Create transaction record
                 $transaction = Transaction::create([
                     'user_id' => $user->id,
                     'type' => 'deposit',
                     'direction' => 'credit',
-                    'amount' => $req->amount,
+                    'amount' => $amount,
                     'balance_before' => $balanceBefore,
-                    'balance_after' => $user->balance,
+                    'balance_after' => $newBalance,
                 ]);
             });
         } catch (\Exception $e) {
@@ -64,7 +71,7 @@ class TransactionController extends Controller
             'status' => '200',
             'msg' => 'Deposit successful!',
             'transaction' => $transaction,
-            'new_balance' => $user->balance,
+            'new_balance' => $newBalance,
         ]);
     }
 
@@ -164,14 +171,6 @@ class TransactionController extends Controller
             ]);
         }
 
-        // Check sufficient balance
-        if ($sender->balance < $req->amount) {
-            return response()->json([
-                'status' => '400',
-                'msg' => 'Insufficient balance.'
-            ]);
-        }
-
         // Validate transaction PIN
         if (!$sender->transaction_pin) {
             return response()->json([
@@ -187,54 +186,90 @@ class TransactionController extends Controller
             ]);
         }
 
+        $amount = $req->input('amount');
         $savedBeneficiary = null;
-
-        if (!$selectedBeneficiary && $req->boolean('save_beneficiary')) {
-            $savedBeneficiary = Beneficiary::firstOrCreate(
-                [
-                    'user_id' => $sender->id,
-                    'account_number' => $targetAccountNumber,
-                    'bank_code' => '999001',
-                ],
-                [
-                    'account_name' => $recipient->name,
-                    'bank_name' => 'Vaultly Bank',
-                ]
-            );
-        }
+        $senderTransaction = null;
+        $newBalance = null;
+        $errorResponse = null;
 
         try {
-            DB::transaction(function () use ($sender, $recipient, $req, $selectedBeneficiary, $savedBeneficiary, &$senderTransaction) {
-                // Debit sender
-                $senderBalanceBefore = $sender->balance;
-                $sender->balance -= $req->amount;
-                $sender->save();
+            DB::transaction(function () use ($sender, $recipient, $req, $amount, $selectedBeneficiary, &$savedBeneficiary, &$senderTransaction, &$newBalance, &$errorResponse) {
+                // Lock both users in stable order to avoid deadlocks.
+                $idsToLock = [$sender->id, $recipient->id];
+                sort($idsToLock);
 
-                // Credit recipient
-                $recipientBalanceBefore = $recipient->balance;
-                $recipient->balance += $req->amount;
-                $recipient->save();
+                $lockedUsers = User::whereIn('id', $idsToLock)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
+                $lockedSender = $lockedUsers->get($sender->id);
+                $lockedRecipient = $lockedUsers->get($recipient->id);
+
+                if (!$lockedSender || !$lockedRecipient) {
+                    $errorResponse = response()->json([
+                        'status' => '404',
+                        'msg' => 'Account not found during transfer processing.'
+                    ]);
+                    return;
+                }
+
+                // Check sufficient balance on locked row to prevent race conditions.
+                if ($lockedSender->balance < $amount) {
+                    $errorResponse = response()->json([
+                        'status' => '400',
+                        'msg' => 'Insufficient balance.'
+                    ]);
+                    return;
+                }
+
+                // Debit sender atomically.
+                $senderBalanceBefore = $lockedSender->balance;
+                $lockedSender->decrement('balance', $amount);
+                $lockedSender->refresh();
+
+                // Credit recipient atomically.
+                $recipientBalanceBefore = $lockedRecipient->balance;
+                $lockedRecipient->increment('balance', $amount);
+                $lockedRecipient->refresh();
+
+                if (!$selectedBeneficiary && $req->boolean('save_beneficiary')) {
+                    $savedBeneficiary = Beneficiary::firstOrCreate(
+                        [
+                            'user_id' => $lockedSender->id,
+                            'account_number' => $lockedRecipient->account_number,
+                            'bank_code' => '999001',
+                        ],
+                        [
+                            'account_name' => $lockedRecipient->name,
+                            'bank_name' => 'Vaultly Bank',
+                        ]
+                    );
+                }
 
                 // Log sender's transaction (outgoing)
                 $senderTransaction = Transaction::create([
-                    'user_id' => $sender->id,
+                    'user_id' => $lockedSender->id,
                     'beneficiary_id' => $selectedBeneficiary?->id ?? $savedBeneficiary?->id,
                     'type' => 'transfer',
                     'direction' => 'debit',
-                    'amount' => $req->amount,
+                    'amount' => $amount,
                     'balance_before' => $senderBalanceBefore,
-                    'balance_after' => $sender->balance,
+                    'balance_after' => $lockedSender->balance,
                 ]);
 
                 // Log recipient's transaction (incoming)
                 Transaction::create([
-                    'user_id' => $recipient->id,
+                    'user_id' => $lockedRecipient->id,
                     'type' => 'transfer',
                     'direction' => 'credit',
-                    'amount' => $req->amount,
+                    'amount' => $amount,
                     'balance_before' => $recipientBalanceBefore,
-                    'balance_after' => $recipient->balance,
+                    'balance_after' => $lockedRecipient->balance,
                 ]);
+
+                $newBalance = $lockedSender->balance;
             });
         } catch (\Exception $e) {
             return response()->json([
@@ -243,11 +278,15 @@ class TransactionController extends Controller
             ]);
         }
 
+        if ($errorResponse) {
+            return $errorResponse;
+        }
+
         return response()->json([
             'status' => '200',
             'msg' => 'Transfer successful!',
             'transaction' => $senderTransaction,
-            'new_balance' => $sender->balance,
+            'new_balance' => $newBalance,
             'beneficiary_saved' => !is_null($savedBeneficiary),
             'beneficiary' => $savedBeneficiary,
         ]);
