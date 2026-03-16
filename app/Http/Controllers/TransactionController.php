@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Validator;
 
 class TransactionController extends Controller
 {
+    private const TX_RETRY_ATTEMPTS = 5;
+
     public function deposit(Request $req)
     {
         // 1. Validate the request
@@ -58,7 +60,7 @@ class TransactionController extends Controller
                     'balance_before' => $balanceBefore,
                     'balance_after' => $newBalance,
                 ]);
-            });
+            }, self::TX_RETRY_ATTEMPTS);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => '500',
@@ -270,7 +272,7 @@ class TransactionController extends Controller
                 ]);
 
                 $newBalance = $lockedSender->balance;
-            });
+            }, self::TX_RETRY_ATTEMPTS);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => '500',
