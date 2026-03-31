@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -89,14 +90,7 @@ class UserController extends Controller
         return response()->json([
             'status' => '200',
             'msg' => 'Login successful!',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at,
-                'profile_picture' => $user->profile_picture,
-                'has_pin' => !is_null($user->transaction_pin),
-            ],
+            'user' => $this->userPayload($user),
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);
@@ -107,19 +101,109 @@ class UserController extends Controller
         $user = $request->user();
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'balance' => $user->balance,
-                'account_type' => $user->account_type,
-                'account_number' => $user->account_number,
-                'created_at' => $user->created_at,
-                'next_of_kin_name' => $user->next_of_kin_name,
-                'next_of_kin_phone' => $user->next_of_kin_phone,
-                'profile_picture' => $user->profile_picture,
-                'has_pin' => !is_null($user->transaction_pin),
+            'user' => $this->userPayload($user),
+        ]);
+    }
+
+    public function getProfile(Request $request)
+    {
+        return response()->json([
+            'status' => '200',
+            'user' => $this->userPayload($request->user()),
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $payload = [
+            'name' => $request->input('name', $request->input('fullname')),
+            'next_of_kin_name' => $request->input('next_of_kin_name'),
+            'next_of_kin_phone' => $request->input('next_of_kin_phone'),
+            'account_type' => $request->input('account_type', $request->input('accountType')),
+        ];
+
+        $validation = Validator::make($payload, [
+            'name' => [
+                'required',
+                'max:50',
+                'min:3',
+                'regex:/^[a-zA-Z]+(\s+[a-zA-Z]+)+$/'
             ],
+            'next_of_kin_name' => ['nullable', 'string', 'min:3', 'max:100'],
+            'next_of_kin_phone' => ['nullable', 'string', 'regex:/^[0-9+\-\s]{7,20}$/'],
+            'account_type' => ['nullable', 'in:savings,current,fixed'],
+        ], [
+            'name.regex' => 'Please enter your first name and last name separated by a space. No numbers or special characters allowed.',
+            'next_of_kin_phone.regex' => 'Next of kin phone format is invalid.',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json([
+                'status' => '422',
+                'msg' => $validation->errors(),
+            ]);
+        }
+
+        $user->name = $payload['name'];
+        $user->next_of_kin_name = $payload['next_of_kin_name'] ?: null;
+        $user->next_of_kin_phone = $payload['next_of_kin_phone'] ?: null;
+
+        if (!is_null($payload['account_type'])) {
+            $user->account_type = $payload['account_type'];
+        }
+
+        $user->save();
+
+        return response()->json([
+            'status' => '200',
+            'msg' => 'Profile updated successfully!',
+            'user' => $this->userPayload($user->fresh()),
+        ]);
+    }
+
+    public function uploadProfilePicture(Request $request)
+    {
+        $validation = Validator::make($request->all(), [
+            'profile_picture' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json([
+                'status' => '422',
+                'msg' => $validation->errors(),
+            ]);
+        }
+
+        $user = $request->user();
+
+        // Remove previous local file when applicable.
+        $this->deleteLocalProfileImageIfApplicable($user->profile_picture);
+
+        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
+        $user->profile_picture = Storage::url($path);
+        $user->save();
+
+        return response()->json([
+            'status' => '200',
+            'msg' => 'Profile picture uploaded successfully!',
+            'user' => $this->userPayload($user->fresh()),
+        ]);
+    }
+
+    public function deleteProfilePicture(Request $request)
+    {
+        $user = $request->user();
+
+        $this->deleteLocalProfileImageIfApplicable($user->profile_picture);
+        $user->profile_picture = null;
+        $user->save();
+
+        return response()->json([
+            'status' => '200',
+            'msg' => 'Profile picture removed successfully!',
+            'user' => $this->userPayload($user->fresh()),
         ]);
     }
 
@@ -217,5 +301,42 @@ class UserController extends Controller
             'status' => '200',
             'msg' => 'Transaction PIN changed successfully!'
         ]);
+    }
+
+    private function userPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'balance' => $user->balance,
+            'account_type' => $user->account_type,
+            'account_number' => $user->account_number,
+            'created_at' => $user->created_at,
+            'next_of_kin_name' => $user->next_of_kin_name,
+            'next_of_kin_phone' => $user->next_of_kin_phone,
+            'profile_picture' => $user->profile_picture,
+            'has_pin' => !is_null($user->transaction_pin),
+        ];
+    }
+
+    private function deleteLocalProfileImageIfApplicable(?string $profilePictureUrl): void
+    {
+        if (!$profilePictureUrl) {
+            return;
+        }
+
+        $storageMarker = '/storage/';
+        $markerPosition = strpos($profilePictureUrl, $storageMarker);
+
+        if ($markerPosition === false) {
+            return;
+        }
+
+        $relativePath = substr($profilePictureUrl, $markerPosition + strlen($storageMarker));
+
+        if ($relativePath !== '') {
+            Storage::disk('public')->delete($relativePath);
+        }
     }
 }

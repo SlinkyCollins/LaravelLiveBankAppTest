@@ -15,6 +15,10 @@ Route::post('/register', [UserController::class, 'createUser']);
 Route::post('/login', [UserController::class, 'login']);
 
 Route::middleware('auth:sanctum')->get('/dashboard', [UserController::class, 'dashboard']);
+Route::middleware('auth:sanctum')->get('/profile', [UserController::class, 'getProfile']);
+Route::middleware('auth:sanctum')->put('/profile', [UserController::class, 'updateProfile']);
+Route::middleware('auth:sanctum')->post('/profile/picture', [UserController::class, 'uploadProfilePicture']);
+Route::middleware('auth:sanctum')->delete('/profile/picture', [UserController::class, 'deleteProfilePicture']);
 
 Route::middleware('auth:sanctum')->post('/logout', [UserController::class, 'logout']);
 
