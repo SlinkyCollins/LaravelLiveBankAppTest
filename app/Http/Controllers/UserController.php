@@ -182,7 +182,7 @@ class UserController extends Controller
         $this->deleteLocalProfileImageIfApplicable($user->profile_picture);
 
         $path = $request->file('profile_picture')->store('profile-pictures', 'public');
-        $user->profile_picture = Storage::url($path);
+        $user->profile_picture = url(Storage::url($path));
         $user->save();
 
         return response()->json([
