@@ -14,6 +14,10 @@ class Transaction extends Model
         'type',
         'direction',
         'amount',
+        'sender_account_name',
+        'sender_account_number',
+        'recipient_account_name',
+        'recipient_account_number',
         'balance_before',
         'balance_after',
     ];

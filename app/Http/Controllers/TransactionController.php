@@ -57,6 +57,10 @@ class TransactionController extends Controller
                     'type' => 'deposit',
                     'direction' => 'credit',
                     'amount' => $amount,
+                    'sender_account_name' => 'Vaultly Funding',
+                    'sender_account_number' => 'SYSTEM',
+                    'recipient_account_name' => $user->name,
+                    'recipient_account_number' => $user->account_number,
                     'balance_before' => $balanceBefore,
                     'balance_after' => $newBalance,
                 ]);
@@ -259,6 +263,10 @@ class TransactionController extends Controller
                     'type' => 'transfer',
                     'direction' => 'debit',
                     'amount' => $amount,
+                    'sender_account_name' => $lockedSender->name,
+                    'sender_account_number' => $lockedSender->account_number,
+                    'recipient_account_name' => $lockedRecipient->name,
+                    'recipient_account_number' => $lockedRecipient->account_number,
                     'balance_before' => $senderBalanceBefore,
                     'balance_after' => $lockedSender->balance,
                 ]);
@@ -269,6 +277,10 @@ class TransactionController extends Controller
                     'type' => 'transfer',
                     'direction' => 'credit',
                     'amount' => $amount,
+                    'sender_account_name' => $lockedSender->name,
+                    'sender_account_number' => $lockedSender->account_number,
+                    'recipient_account_name' => $lockedRecipient->name,
+                    'recipient_account_number' => $lockedRecipient->account_number,
                     'balance_before' => $recipientBalanceBefore,
                     'balance_after' => $lockedRecipient->balance,
                 ]);
@@ -307,6 +319,7 @@ class TransactionController extends Controller
                 return [
                     // Keep internal ID for system use.
                     'id' => $transaction->id,
+                    'transaction_id' => $transaction->id,
                     // Public-facing, non-guessable identifier.
                     'transaction_reference' => $transaction->transaction_reference,
                     'user_id' => $transaction->user_id,
@@ -314,6 +327,10 @@ class TransactionController extends Controller
                     'type' => $transaction->type,
                     'direction' => $transaction->direction,
                     'amount' => $transaction->amount,
+                    'sender_account_name' => $transaction->sender_account_name,
+                    'sender_account_number' => $transaction->sender_account_number,
+                    'recipient_account_name' => $transaction->recipient_account_name,
+                    'recipient_account_number' => $transaction->recipient_account_number,
                     'balance_before' => $transaction->balance_before,
                     'balance_after' => $transaction->balance_after,
                     'created_at' => $transaction->created_at,
@@ -390,6 +407,10 @@ class TransactionController extends Controller
                     'type' => 'withdraw',
                     'direction' => 'debit',
                     'amount' => $amount,
+                    'sender_account_name' => $lockedUser->name,
+                    'sender_account_number' => $lockedUser->account_number,
+                    'recipient_account_name' => 'Cash Withdrawal',
+                    'recipient_account_number' => 'CASH',
                     'balance_before' => $balanceBefore,
                     'balance_after' => $newBalance,
                 ]);
