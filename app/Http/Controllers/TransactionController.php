@@ -302,7 +302,24 @@ class TransactionController extends Controller
 
         $transactions = Transaction::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(20)
+            ->through(function (Transaction $transaction) {
+                return [
+                    // Keep internal ID for system use.
+                    'id' => $transaction->id,
+                    // Public-facing, non-guessable identifier.
+                    'transaction_reference' => $transaction->transaction_reference,
+                    'user_id' => $transaction->user_id,
+                    'beneficiary_id' => $transaction->beneficiary_id,
+                    'type' => $transaction->type,
+                    'direction' => $transaction->direction,
+                    'amount' => $transaction->amount,
+                    'balance_before' => $transaction->balance_before,
+                    'balance_after' => $transaction->balance_after,
+                    'created_at' => $transaction->created_at,
+                    'updated_at' => $transaction->updated_at,
+                ];
+            });
 
         return response()->json([
             'status' => '200',
