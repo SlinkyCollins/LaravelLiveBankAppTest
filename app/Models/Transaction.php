@@ -8,7 +8,6 @@ use Illuminate\Support\Str;
 class Transaction extends Model
 {
     protected $fillable = [
-        'transaction_reference',
         'user_id',
         'beneficiary_id',
         'type',

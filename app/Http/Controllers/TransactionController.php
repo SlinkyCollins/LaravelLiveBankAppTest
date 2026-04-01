@@ -317,13 +317,8 @@ class TransactionController extends Controller
             ->paginate(20)
             ->through(function (Transaction $transaction) {
                 return [
-                    // Keep internal ID for system use.
-                    'id' => $transaction->id,
-                    'transaction_id' => $transaction->id,
                     // Public-facing, non-guessable identifier.
                     'transaction_reference' => $transaction->transaction_reference,
-                    'user_id' => $transaction->user_id,
-                    'beneficiary_id' => $transaction->beneficiary_id,
                     'type' => $transaction->type,
                     'direction' => $transaction->direction,
                     'amount' => $transaction->amount,
