@@ -38,6 +38,8 @@ Route::middleware('auth:sanctum')->post('/set-pin', [UserController::class, 'set
 
 Route::middleware('auth:sanctum')->put('/change-pin', [UserController::class, 'changePin']);
 
+Route::middleware('auth:sanctum')->put('/change-password', [UserController::class, 'changePassword']);
+
 Route::middleware('auth:sanctum')->get('/beneficiaries', [BeneficiaryController::class, 'index']);
 
 Route::middleware('auth:sanctum')->post('/beneficiaries', [BeneficiaryController::class, 'store']);

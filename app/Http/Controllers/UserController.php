@@ -303,6 +303,54 @@ class UserController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request)
+    {
+        $validation = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/',
+            ],
+            'new_password_confirmation' => ['required', 'same:new_password'],
+        ], [
+            'new_password.regex' => 'Password must contain letters, numbers and special characters',
+            'new_password_confirmation.same' => 'Password confirmation does not match.',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json([
+                'status' => '422',
+                'msg' => $validation->errors(),
+            ]);
+        }
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'status' => '401',
+                'msg' => 'Current password is incorrect.',
+            ]);
+        }
+
+        if (Hash::check($request->new_password, $user->password)) {
+            return response()->json([
+                'status' => '400',
+                'msg' => 'New password must be different from current password.',
+            ]);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'status' => '200',
+            'msg' => 'Password changed successfully!',
+        ]);
+    }
+
     private function userPayload(User $user): array
     {
         return [
