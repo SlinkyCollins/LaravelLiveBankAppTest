@@ -1,5 +1,10 @@
 <?php
 
+$allowedOrigins = array_values(array_filter(array_map('trim', explode(',', env(
+    'CORS_ALLOWED_ORIGINS',
+    'https://vaultlydemo.vercel.app,http://localhost:5173,http://127.0.0.1:5173'
+)))));
+
 return [
 
     /*
@@ -19,7 +24,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://vaultlydemo.vercel.app'],
+    'allowed_origins' => $allowedOrigins,
 
     'allowed_origins_patterns' => [],
 
