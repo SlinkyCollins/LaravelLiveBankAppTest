@@ -205,6 +205,7 @@ class UserController extends Controller
             return response()->json([
                 'status' => '500',
                 'msg' => 'Failed to upload profile picture. Please try again.',
+                'debug_error' => $exception->getMessage(),
             ], 500);
         }
 
@@ -232,6 +233,7 @@ class UserController extends Controller
                 return response()->json([
                     'status' => '500',
                     'msg' => 'Failed to remove profile picture. Please try again.',
+                    'debug_error' => $exception->getMessage(),
                 ], 500);
             }
         }
