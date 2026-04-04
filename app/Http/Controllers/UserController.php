@@ -217,10 +217,6 @@ class UserController extends Controller
             return response()->json([
                 'status' => '500',
                 'msg' => 'Failed to upload profile picture. Please try again.',
-                'debug_error' => $exception->getMessage(),
-                'debug_exception' => get_class($exception),
-                'debug_file' => $exception->getFile(),
-                'debug_line' => $exception->getLine(),
             ], 500);
         }
 
@@ -250,7 +246,6 @@ class UserController extends Controller
                 return response()->json([
                     'status' => '500',
                     'msg' => 'Failed to remove profile picture. Please try again.',
-                    'debug_error' => $exception->getMessage(),
                 ], 500);
             }
         }
@@ -423,7 +418,6 @@ class UserController extends Controller
             'next_of_kin_name' => $user->next_of_kin_name,
             'next_of_kin_phone' => $user->next_of_kin_phone,
             'profile_picture' => $user->profile_picture,
-            'profile_picture_public_id' => $user->profile_picture_public_id,
             'has_pin' => !is_null($user->transaction_pin),
         ];
     }
