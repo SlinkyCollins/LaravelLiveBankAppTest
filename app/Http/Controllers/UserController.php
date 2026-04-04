@@ -182,10 +182,12 @@ class UserController extends Controller
 
         try {
             if ($user->profile_picture_public_id) {
-                Cloudinary::destroy($user->profile_picture_public_id);
+                Cloudinary::uploadApi()->destroy($user->profile_picture_public_id, [
+                    'resource_type' => 'image',
+                ]);
             }
 
-            $uploadedAsset = Cloudinary::upload(
+            $uploadedAsset = Cloudinary::uploadApi()->upload(
                 $request->file('profile_picture')->getRealPath(),
                 [
                     'folder' => 'vaultly/profile-pictures',
@@ -193,8 +195,8 @@ class UserController extends Controller
                 ]
             );
 
-            $securePath = $uploadedAsset->getSecurePath();
-            $publicId = $uploadedAsset->getPublicId();
+            $securePath = $uploadedAsset['secure_url'] ?? null;
+            $publicId = $uploadedAsset['public_id'] ?? null;
 
             if (!is_string($securePath) || trim($securePath) === '' || !is_string($publicId) || trim($publicId) === '') {
                 throw new \RuntimeException('Cloudinary upload returned an invalid response payload.');
@@ -235,7 +237,9 @@ class UserController extends Controller
 
         if ($user->profile_picture_public_id) {
             try {
-                Cloudinary::destroy($user->profile_picture_public_id);
+                Cloudinary::uploadApi()->destroy($user->profile_picture_public_id, [
+                    'resource_type' => 'image',
+                ]);
             } catch (Throwable $exception) {
                 Log::error('Profile picture delete failed.', [
                     'user_id' => $user->id,
