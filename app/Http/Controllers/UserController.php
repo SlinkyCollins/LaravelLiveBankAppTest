@@ -175,7 +175,7 @@ class UserController extends Controller
             return response()->json([
                 'status' => '422',
                 'msg' => $validation->errors(),
-            ]);
+            ], 422);
         }
 
         $user = $request->user();
@@ -193,19 +193,32 @@ class UserController extends Controller
                 ]
             );
 
-            $user->profile_picture = $uploadedAsset->getSecurePath();
-            $user->profile_picture_public_id = $uploadedAsset->getPublicId();
+            $securePath = $uploadedAsset->getSecurePath();
+            $publicId = $uploadedAsset->getPublicId();
+
+            if (!is_string($securePath) || trim($securePath) === '' || !is_string($publicId) || trim($publicId) === '') {
+                throw new \RuntimeException('Cloudinary upload returned an invalid response payload.');
+            }
+
+            $user->profile_picture = $securePath;
+            $user->profile_picture_public_id = $publicId;
             $user->save();
         } catch (Throwable $exception) {
             Log::error('Profile picture upload failed.', [
                 'user_id' => $user->id,
                 'error' => $exception->getMessage(),
+                'exception' => get_class($exception),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
             ]);
 
             return response()->json([
                 'status' => '500',
                 'msg' => 'Failed to upload profile picture. Please try again.',
                 'debug_error' => $exception->getMessage(),
+                'debug_exception' => get_class($exception),
+                'debug_file' => $exception->getFile(),
+                'debug_line' => $exception->getLine(),
             ], 500);
         }
 
