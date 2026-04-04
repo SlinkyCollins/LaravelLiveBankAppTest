@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -178,12 +179,28 @@ class UserController extends Controller
 
         $user = $request->user();
 
-        // Remove previous local file when applicable.
-        $this->deleteLocalProfileImageIfApplicable($user->profile_picture);
+        try {
+            if ($user->profile_picture_public_id) {
+                Cloudinary::destroy($user->profile_picture_public_id);
+            }
 
-        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
-        $user->profile_picture = url(Storage::url($path));
-        $user->save();
+            $uploadedAsset = Cloudinary::upload(
+                $request->file('profile_picture')->getRealPath(),
+                [
+                    'folder' => 'vaultly/profile-pictures',
+                    'resource_type' => 'image',
+                ]
+            );
+
+            $user->profile_picture = $uploadedAsset->getSecurePath();
+            $user->profile_picture_public_id = $uploadedAsset->getPublicId();
+            $user->save();
+        } catch (Throwable $exception) {
+            return response()->json([
+                'status' => '500',
+                'msg' => 'Failed to upload profile picture. Please try again.',
+            ]);
+        }
 
         return response()->json([
             'status' => '200',
@@ -196,8 +213,19 @@ class UserController extends Controller
     {
         $user = $request->user();
 
-        $this->deleteLocalProfileImageIfApplicable($user->profile_picture);
+        if ($user->profile_picture_public_id) {
+            try {
+                Cloudinary::destroy($user->profile_picture_public_id);
+            } catch (Throwable $exception) {
+                return response()->json([
+                    'status' => '500',
+                    'msg' => 'Failed to remove profile picture. Please try again.',
+                ]);
+            }
+        }
+
         $user->profile_picture = null;
+        $user->profile_picture_public_id = null;
         $user->save();
 
         return response()->json([
@@ -364,27 +392,8 @@ class UserController extends Controller
             'next_of_kin_name' => $user->next_of_kin_name,
             'next_of_kin_phone' => $user->next_of_kin_phone,
             'profile_picture' => $user->profile_picture,
+            'profile_picture_public_id' => $user->profile_picture_public_id,
             'has_pin' => !is_null($user->transaction_pin),
         ];
-    }
-
-    private function deleteLocalProfileImageIfApplicable(?string $profilePictureUrl): void
-    {
-        if (!$profilePictureUrl) {
-            return;
-        }
-
-        $storageMarker = '/storage/';
-        $markerPosition = strpos($profilePictureUrl, $storageMarker);
-
-        if ($markerPosition === false) {
-            return;
-        }
-
-        $relativePath = substr($profilePictureUrl, $markerPosition + strlen($storageMarker));
-
-        if ($relativePath !== '') {
-            Storage::disk('public')->delete($relativePath);
-        }
     }
 }

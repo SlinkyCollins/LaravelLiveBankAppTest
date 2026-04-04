@@ -27,6 +27,7 @@ class User extends Authenticatable
         'balance',
         'transaction_pin',
         'profile_picture',
+        'profile_picture_public_id',
         'next_of_kin_name',
         'next_of_kin_phone',
     ];
