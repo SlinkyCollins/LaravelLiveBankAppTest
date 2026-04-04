@@ -6,6 +6,7 @@ use App\Models\User;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
@@ -144,7 +145,7 @@ class UserController extends Controller
             return response()->json([
                 'status' => '422',
                 'msg' => $validation->errors(),
-            ]);
+            ], 422);
         }
 
         $user->name = $payload['name'];
@@ -196,10 +197,15 @@ class UserController extends Controller
             $user->profile_picture_public_id = $uploadedAsset->getPublicId();
             $user->save();
         } catch (Throwable $exception) {
+            Log::error('Profile picture upload failed.', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+
             return response()->json([
                 'status' => '500',
                 'msg' => 'Failed to upload profile picture. Please try again.',
-            ]);
+            ], 500);
         }
 
         return response()->json([
@@ -217,10 +223,16 @@ class UserController extends Controller
             try {
                 Cloudinary::destroy($user->profile_picture_public_id);
             } catch (Throwable $exception) {
+                Log::error('Profile picture delete failed.', [
+                    'user_id' => $user->id,
+                    'public_id' => $user->profile_picture_public_id,
+                    'error' => $exception->getMessage(),
+                ]);
+
                 return response()->json([
                     'status' => '500',
                     'msg' => 'Failed to remove profile picture. Please try again.',
-                ]);
+                ], 500);
             }
         }
 
