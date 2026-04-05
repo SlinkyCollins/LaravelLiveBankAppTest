@@ -1,66 +1,277 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Vaultly Backend API (Laravel 12)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel API powering the Vaultly banking demo. It provides token-authenticated endpoints for account access, wallet operations, transaction history, beneficiaries, security settings (PIN/password), and Cloudinary-backed profile pictures.
 
-## About Laravel
+![Laravel](https://img.shields.io/badge/Laravel-12.x-ff2d20)
+![PHP](https://img.shields.io/badge/PHP-8.2-777bb4)
+![Sanctum](https://img.shields.io/badge/Auth-Sanctum-0ea5e9)
+![Status](https://img.shields.io/badge/Deployment-Live-success)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Table of Contents
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Why This Project](#why-this-project)
+- [Live Deployment](#live-deployment)
+- [Tech Stack](#tech-stack)
+- [Screenshots and GIFs](#screenshots-and-gifs)
+- [Project Structure](#project-structure)
+- [Architecture Deep Dive](#architecture-deep-dive)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Commands](#commands)
+- [Core API Endpoints](#core-api-endpoints)
+- [Testing](#testing)
+- [Deployment Notes](#deployment-notes)
+- [Known Constraints](#known-constraints)
+- [FAQ and Troubleshooting](#faq-and-troubleshooting)
+- [License](#license)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Why This Project
 
-## Learning Laravel
+This backend focuses on realistic banking workflows with safe defaults:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- Laravel Sanctum Bearer-token auth
+- transactional balance updates (deposit, transfer, withdraw)
+- recipient verification and beneficiary management
+- transaction PIN setup/change and password change
+- profile data updates and Cloudinary image lifecycle (upload/replace/delete)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Live Deployment
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- API Base URL: https://laravellivebankapptest.onrender.com
+- API Prefix: `/api`
+- Current frontend origin (CORS default): https://vaultlydemo.vercel.app
 
-## Laravel Sponsors
+## Tech Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- Laravel 12
+- PHP 8.2
+- MySQL (Aiven in production)
+- Laravel Sanctum
+- Cloudinary Laravel SDK
+- Docker (Render deployment target)
 
-### Premium Partners
+## Screenshots and GIFs
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+Suggested backend demo captures for docs and portfolio walkthrough:
 
-## Contributing
+![Login and Token Response](docs/media/backend/login-token.png)
+![Deposit Request and Response](docs/media/backend/deposit.png)
+![Transfer with PIN](docs/media/backend/transfer-pin.gif)
+![Transactions History Pagination](docs/media/backend/transactions.png)
+![Profile Picture Upload (Cloudinary)](docs/media/backend/profile-upload.gif)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Recommended short recordings:
 
-## Code of Conduct
+- login -> authenticated request sequence
+- transfer flow showing PIN validation and updated balance
+- Cloudinary upload then replace/remove profile picture
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Project Structure
 
-## Security Vulnerabilities
+```text
+laravelTest/
+	app/
+		Http/Controllers/
+			UserController.php
+			TransactionController.php
+			BeneficiaryController.php
+		Models/
+			User.php
+			Transaction.php
+			Beneficiary.php
+	routes/
+		api.php
+	database/
+		migrations/
+		factories/
+		seeders/
+	config/
+		cors.php
+		cloudinary.php
+	tests/
+		Feature/
+		Unit/
+	Dockerfile
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Architecture Deep Dive
+
+### Auth Model
+
+- `POST /api/register` creates user with generated 12-digit account number.
+- `POST /api/login` returns Sanctum access token (`Bearer`).
+- Protected routes use `auth:sanctum` middleware.
+
+### Money Movement and Data Integrity
+
+- `TransactionController` wraps financial mutations in database transactions.
+- Transfer locks sender/recipient rows in stable order to reduce deadlock risk.
+- Transaction history stores before/after balances and transfer direction (`credit`/`debit`).
+
+### Beneficiaries
+
+- CRUD endpoints scoped to authenticated user.
+- duplicate protection by account + bank code.
+- self-account as beneficiary is blocked.
+
+### Profile and Media
+
+- Profile metadata update via `PUT /api/profile`.
+- Profile picture upload/delete uses Cloudinary only.
+- backend stores URL plus `profile_picture_public_id` for deterministic replace/delete.
+
+### CORS and Frontend Integration
+
+- `config/cors.php` reads comma-separated `CORS_ALLOWED_ORIGINS`.
+- defaults include deployed frontend and local Vite origins.
+
+## Prerequisites
+
+- PHP 8.2+
+- Composer 2+
+- MySQL 8+ (or compatible)
+- Node.js 18+ (only for local Vite assets/dev convenience)
+
+## Quick Start
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve
+```
+
+API becomes available at `http://127.0.0.1:8000/api`.
+
+## Environment Variables
+
+At minimum, configure:
+
+```bash
+APP_NAME=Vaultly
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=vaultly_db
+DB_USERNAME=your_user
+DB_PASSWORD=your_password
+
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+CLOUDINARY_URL=
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_KEY=
+CLOUDINARY_SECRET=
+CLOUDINARY_SECURE=true
+```
+
+Notes:
+
+- Cloudinary config supports either `CLOUDINARY_URL` or split key/secret/cloud name values.
+- For production, set `APP_DEBUG=false` and secure all secrets.
+
+## Commands
+
+```bash
+php artisan serve                 # local API server
+php artisan migrate               # run migrations
+php artisan migrate:fresh --seed  # rebuild local db
+php artisan config:clear          # clear config cache
+php artisan route:list            # inspect routes
+php artisan test                  # run tests
+```
+
+Optional full local dev command from `composer.json`:
+
+```bash
+composer run dev
+```
+
+## Core API Endpoints
+
+Auth and profile:
+
+- `POST /api/register`
+- `POST /api/login`
+- `POST /api/logout` (auth)
+- `GET /api/dashboard` (auth)
+- `GET /api/profile` (auth)
+- `PUT /api/profile` (auth)
+- `POST /api/profile/picture` (auth, multipart)
+- `DELETE /api/profile/picture` (auth)
+
+Wallet and transactions:
+
+- `GET /api/balance` (auth)
+- `POST /api/deposit` (auth)
+- `POST /api/verify-account` (auth)
+- `POST /api/transfer` (auth)
+- `POST /api/withdraw` (auth)
+- `GET /api/transactions` (auth)
+
+Security settings:
+
+- `POST /api/set-pin` (auth)
+- `PUT /api/change-pin` (auth)
+- `PUT /api/change-password` (auth)
+
+Beneficiaries:
+
+- `GET /api/beneficiaries` (auth)
+- `POST /api/beneficiaries` (auth)
+- `PUT /api/beneficiaries/{id}` (auth)
+- `DELETE /api/beneficiaries/{id}` (auth)
+
+## Testing
+
+PHPUnit is configured with separate Unit and Feature suites.
+
+```bash
+php artisan test
+```
+
+Current source include target is `app/`.
+
+## Deployment Notes
+
+- Deployed via Docker on Render using included `Dockerfile`.
+- Container startup runs migrations automatically.
+- Ensure Render env vars include database credentials, app key, and Cloudinary credentials.
+- Set `CORS_ALLOWED_ORIGINS` to your deployed frontend domain(s).
+
+## Known Constraints
+
+- Financial endpoints enforce amount bounds (`min:100`, `max:10000000`).
+- Transfer and PIN operations require a 4-digit numeric PIN.
+- Account numbers are internal 12-digit values.
+- Free-tier hosting/databases may introduce cold starts or lower throughput.
+- No background queue workers are required for current feature set.
+
+## FAQ and Troubleshooting
+
+### API returns 401 for protected routes
+
+- Confirm request has `Authorization: Bearer <token>` header.
+- Ensure token belongs to active user and has not been revoked.
+
+### Cloudinary upload fails
+
+- Verify Cloudinary env vars are correct.
+- Confirm image is `jpg/jpeg/png/webp` and <= 2MB.
+- Check application logs for upload exception details.
+
+### CORS blocked in browser
+
+- Add frontend origin to `CORS_ALLOWED_ORIGINS`.
+- Clear config cache after env changes.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is for educational and portfolio/demo purposes.
