@@ -40,7 +40,7 @@ This backend focuses on realistic banking workflows with safe defaults:
 
 - API Base URL: https://laravellivebankapptest.onrender.com
 - API Prefix: `/api`
-- Current frontend origin (CORS default): https://vaultlydemo.vercel.app
+- Current frontend origin (CORS default in `config/cors.php`): https://vaultlydemo.vercel.app
 
 ## Tech Stack
 
@@ -66,6 +66,10 @@ Recommended short recordings:
 - login -> authenticated request sequence
 - transfer flow showing PIN validation and updated balance
 - Cloudinary upload then replace/remove profile picture
+
+No screenshots or GIFs are currently committed in this repository under the referenced paths.
+
+TODO: add backend API screenshots/GIFs under a committed path (for example, `docs/media/backend/`) and then update links.
 
 ## Project Structure
 
@@ -144,6 +148,8 @@ php artisan serve
 ```
 
 API becomes available at `http://127.0.0.1:8000/api`.
+
+If using MySQL, set `DB_CONNECTION=mysql` and fill DB credentials in `.env` before running migrations.
 
 ## Environment Variables
 
@@ -241,9 +247,9 @@ Current source include target is `app/`.
 
 ## Deployment Notes
 
-- Deployed via Docker on Render using included `Dockerfile`.
+- Deployed via Docker containerization on Render using included `Dockerfile`.
 - Container startup runs migrations automatically.
-- Ensure Render env vars include database credentials, app key, and Cloudinary credentials.
+- Ensure Render environment variables include database credentials, app key, and Cloudinary credentials.
 - Set `CORS_ALLOWED_ORIGINS` to your deployed frontend domain(s).
 
 ## Known Constraints
@@ -274,4 +280,5 @@ Current source include target is `app/`.
 
 ## License
 
+`composer.json` declares MIT for this Laravel project.
 This project is for educational and portfolio/demo purposes.
