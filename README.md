@@ -28,13 +28,14 @@ Laravel API powering the Vaultly banking demo. It provides token-authenticated e
 
 ## Why This Project
 
-This backend focuses on realistic banking workflows with safe defaults:
-
-- Laravel Sanctum Bearer-token auth
-- transactional balance updates (deposit, transfer, withdraw)
-- recipient verification and beneficiary management
-- transaction PIN setup/change and password change
-- profile data updates and Cloudinary image lifecycle (upload/replace/delete)
+Vaultly is a full-stack banking demo built to demonstrate real-world patterns — not just CRUD.
+The backend enforces transactional integrity on all money movement (deposit, transfer, withdraw)
+using database transactions with row-level locking to prevent race conditions. Auth is handled
+via Laravel Sanctum bearer tokens. Media is managed through Cloudinary with deterministic
+public ID tracking so profile pictures can be replaced or deleted cleanly without orphaning
+assets. The frontend is a single-page Vue 3 app with Pinia state management, global 401
+handling, and route ownership guards so users can't access each other's dashboard by changing
+a URL param.
 
 ## Live Deployment
 
@@ -176,6 +177,9 @@ CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_KEY=
 CLOUDINARY_SECRET=
 CLOUDINARY_SECURE=true
+
+# Add this for local dev when running composer run dev (starts a queue worker)
+QUEUE_CONNECTION=sync
 ```
 
 Notes:
@@ -202,25 +206,27 @@ composer run dev
 
 ## Core API Endpoints
 
-Auth and profile:
+### Auth and Profile
 
-- `POST /api/register`
-- `POST /api/login`
-- `POST /api/logout` (auth)
-- `GET /api/dashboard` (auth)
-- `GET /api/profile` (auth)
-- `PUT /api/profile` (auth)
-- `POST /api/profile/picture` (auth, multipart)
-- `DELETE /api/profile/picture` (auth)
+| Method | Endpoint | Auth | Required Body Fields |
+|--------|----------|------|----------------------|
+| POST | `/api/register` | — | `fullname`, `email`, `password`, `password_confirmation`, `accountType` (`savings\|current\|fixed`) |
+| POST | `/api/login` | — | `email`, `password` |
+| POST | `/api/logout` | ✓ | — |
+| GET | `/api/dashboard` | ✓ | — |
+| GET | `/api/profile` | ✓ | — |
+| PUT | `/api/profile` | ✓ | `name`, `account_type` (optional) |
+| POST | `/api/profile/picture` | ✓ | `profile_picture` (jpg/jpeg/png/webp, max 2MB) |
+| DELETE | `/api/profile/picture` | ✓ | — |
 
-Wallet and transactions:
+### Wallet and Transactions
 
-- `GET /api/balance` (auth)
-- `POST /api/deposit` (auth)
-- `POST /api/verify-account` (auth)
-- `POST /api/transfer` (auth)
-- `POST /api/withdraw` (auth)
-- `GET /api/transactions` (auth)
+- `GET /api/balance` — returns current balance
+- `POST /api/deposit` — requires `amount` (100–10,000,000)
+- `POST /api/verify-account` — verifies an account number exists and returns the account holder's name; use this before transfer to confirm the recipient
+- `POST /api/transfer` — requires `amount`, `pin`, and either `account_number` or `beneficiary_id` (saved beneficiaries can skip manual account entry)
+- `POST /api/withdraw` — requires `amount`, `pin`
+- `GET /api/transactions` — paginated history with `credit`/`debit` direction
 
 Security settings:
 
